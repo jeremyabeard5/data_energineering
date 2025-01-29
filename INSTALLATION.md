@@ -8,6 +8,7 @@ cd data-engineering
 pip install -r requirements.txt
 # run the application
 python manage.py runserver
+```
 
 ## Documentation
 - [Readme](README.md)
