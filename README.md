@@ -20,7 +20,7 @@ This project aims to analyze the utilization of electric vehicle (EV) charging s
 - **React**: For developing the interactive frontend.
 
 ## Installation
-TBD: commands, installations, depedencies, etc.
+TBD: commands, installations, dependencies, etc.
 
 ```bash
 git clone https://github.com/jeremyabeard5/data_energineering.git
