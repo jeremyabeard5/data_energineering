@@ -3,6 +3,13 @@ name: Schedule EVSE Data Refresh
 on:
   schedule:
     - cron: '0 8 * * 1' # every monday at 8:00 AM
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
 
 jobs:
   run-python-script:
