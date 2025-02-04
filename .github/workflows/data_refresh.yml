@@ -1,4 +1,4 @@
-name: Schedule Python Script
+name: Schedule EVSE Data Refresh
 
 on:
   schedule:
