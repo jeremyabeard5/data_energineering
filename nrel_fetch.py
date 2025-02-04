@@ -4,6 +4,8 @@ import psycopg2
 
 # Define the API URL
 url = 'https://developer.nrel.gov/api/alt-fuel-stations/v1.json'
+# https://developer.nrel.gov/docs/transportation/alt-fuel-stations-v1/
+# https://developer.nrel.gov/docs/transportation/alt-fuel-stations-v1/all/
 api_key = os.getenv('NREL_ENERGY_TOKEN')
 pg_un = os.getenv('PG_UN')
 pg_pw = os.getenv('PG_PW')
@@ -50,6 +52,7 @@ def refresh_db():
     '''
     try:
         cursor = db_conn.cursor()
+        # postgres datatypes: https://www.postgresql.org/docs/current/datatype.html 
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS evses (
                 id INTEGER PRIMARY KEY,
@@ -88,8 +91,53 @@ def refresh_db():
             print('Failed to retrieve data:', response.status_code)
         
         
-        insert_stmt = "INSERT INTO evses (id, facility_type, restricted_access, updated_at, date_last_confirmed, open_date, latitude, longitude, ev_pricing, ev_network_web, ev_network, ev_connector_types, ev_level1_evse_num, ev_level2_evse_num, ev_dc_fast_num, ev_other_evse, access_code, expected_date, status_code, country, zip, state, city, street_address, station_name) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) ON CONFLICT (id) DO NOTHING"
-        selected_data = [(stat['id'], stat['facility_type'], stat['restricted_access'], stat['updated_at'], stat['date_last_confirmed'], stat['open_date'], stat['latitude'], stat['longitude'], stat['ev_pricing'], stat['ev_network_web'], stat['ev_network'], stat['ev_connector_types'], stat['ev_level1_evse_num'], stat['ev_level2_evse_num'], stat['ev_dc_fast_num'], stat['ev_other_evse'], stat['access_code'], stat['expected_date'], stat['status_code'], stat['country'], stat['zip'], stat['state'], stat['city'], stat['street_address'], stat['station_name']) for stat in data['fuel_stations']]
+        insert_stmt = """INSERT INTO evses 
+            (id, facility_type, restricted_access, 
+            updated_at, date_last_confirmed, open_date, 
+            latitude, longitude, ev_pricing, 
+            ev_network_web, ev_network, ev_connector_types, 
+            ev_level1_evse_num, ev_level2_evse_num, ev_dc_fast_num, 
+            ev_other_evse, access_code, expected_date, 
+            status_code, country, zip, state, city, 
+            street_address, station_name) 
+            VALUES 
+            (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) 
+            ON CONFLICT (id) DO UPDATE SET
+                facility_type = EXCLUDED.facility_type,
+                restricted_access = EXCLUDED.restricted_access,
+                updated_at = EXCLUDED.updated_at,
+                date_last_confirmed = EXCLUDED.date_last_confirmed,
+                open_date = EXCLUDED.open_date,
+                latitude = EXCLUDED.latitude,
+                longitude = EXCLUDED.longitude,
+                ev_pricing = EXCLUDED.ev_pricing,
+                ev_network_web = EXCLUDED.ev_network_web,
+                ev_network = EXCLUDED.ev_network,
+                ev_connector_types = EXCLUDED.ev_connector_types,
+                ev_level1_evse_num = EXCLUDED.ev_level1_evse_num,
+                ev_level2_evse_num = EXCLUDED.ev_level2_evse_num,
+                ev_dc_fast_num = EXCLUDED.ev_dc_fast_num,
+                ev_other_evse = EXCLUDED.ev_other_evse,
+                access_code = EXCLUDED.access_code,
+                expected_date = EXCLUDED.expected_date,
+                status_code = EXCLUDED.status_code,
+                country = EXCLUDED.country,
+                zip = EXCLUDED.zip,
+                state = EXCLUDED.state,
+                city = EXCLUDED.city,
+                street_address = EXCLUDED.street_address,
+                station_name = EXCLUDED.station_name
+            """
+                
+        selected_data = [(stat['id'], stat['facility_type'], stat['restricted_access'], 
+                          stat['updated_at'], stat['date_last_confirmed'], stat['open_date'], 
+                          stat['latitude'], stat['longitude'], stat['ev_pricing'], 
+                          stat['ev_network_web'], stat['ev_network'], 
+                          stat['ev_connector_types'], stat['ev_level1_evse_num'], stat['ev_level2_evse_num'], 
+                          stat['ev_dc_fast_num'], stat['ev_other_evse'], stat['access_code'], 
+                          stat['expected_date'], stat['status_code'], stat['country'], 
+                          stat['zip'], stat['state'], stat['city'], stat['street_address'], 
+                          stat['station_name']) for stat in data['fuel_stations']]
         cursor.executemany(insert_stmt, selected_data)
         
         db_conn.commit()
@@ -99,6 +147,11 @@ def refresh_db():
     finally:
         # closing database connection.
         if db_conn:
+            cursor.execute("SELECT * FROM evses ORDER BY updated_at DESC LIMIT 10")  # Adjust table name and limit as needed
+            sampleRows = cursor.fetchall()
+            for row in sampleRows:
+                print(row)
+            
             cursor.close()
             db_conn.close()
             print("PostgreSQL connection is closed")
