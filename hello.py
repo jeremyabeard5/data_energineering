@@ -1,5 +1,5 @@
 def main():
-    print("Hello from djangojs!")
+    print("Hello from data_energineering!")
 
 
 if __name__ == "__main__":
