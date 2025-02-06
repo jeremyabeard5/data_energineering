@@ -6,20 +6,21 @@ import psycopg2
 url = 'https://developer.nrel.gov/api/alt-fuel-stations/v1.json'
 # https://developer.nrel.gov/docs/transportation/alt-fuel-stations-v1/
 # https://developer.nrel.gov/docs/transportation/alt-fuel-stations-v1/all/
+
+state_codes = [
+    "AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "FL", "GA", 
+    "HI", "ID", "IL", "IN", "IA", "KS", "KY", "LA", "ME", "MD", 
+    "MA", "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH", "NJ", 
+    "NM", "NY", "NC", "ND", "OH", "OK", "OR", "PA", "RI", "SC", 
+    "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY"
+]
 api_key = os.getenv('NREL_ENERGY_TOKEN')
 pg_un = os.getenv('PG_UN')
 pg_pw = os.getenv('PG_PW')
 pg_host = os.getenv('PG_HOST')
 pg_port = os.getenv('PG_PORT')
 pg_db = os.getenv('PG_DB')
-params = {
-    'fuel_type': 'ELEC',
-    'access': 'public',
-    'limit': 'all',
-    'country': 'US',
-    'state': 'CO',
-    'api_key': api_key,
-}
+
 
 db_conn = psycopg2.connect(
             user=pg_un,
@@ -34,6 +35,14 @@ def fetch_data():
     This is a test function to make sure the API is working
     '''
     # Make the GET request
+    params = {
+        'fuel_type': 'ELEC',
+        'access': 'public',
+        'limit': 'all',
+        'country': 'US',
+        #'state': 'CO, OH',
+        'api_key': api_key,
+    }
     response = requests.get(url, params=params)
 
     # Check if the request was successful
@@ -83,7 +92,14 @@ def refresh_db():
             )
         """)
         
-        
+        params = {
+            'fuel_type': 'ELEC',
+            'access': 'public',
+            'limit': 'all',
+            'country': 'US',
+            #'state': 'CO',
+            'api_key': api_key,
+        }
         response = requests.get(url, params=params)
         if response.status_code == 200:
             data = response.json()
@@ -101,7 +117,7 @@ def refresh_db():
             status_code, country, zip, state, city, 
             street_address, station_name) 
             VALUES 
-            (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) 
+            (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) 
             ON CONFLICT (id) DO UPDATE SET
                 facility_type = EXCLUDED.facility_type,
                 restricted_access = EXCLUDED.restricted_access,
@@ -141,16 +157,16 @@ def refresh_db():
         cursor.executemany(insert_stmt, selected_data)
         
         db_conn.commit()
-        print("Data inserted successfully")
-    except (Exception, psycopg2.Error) as error:
+        print(f"{len(selected_data)} rows inserted successfully")
+    except Exception as error: #(Exception, psycopg2.Error) as error:
         print("Error while connecting to PostgreSQL: ", error)
     finally:
         # closing database connection.
         if db_conn:
-            cursor.execute("SELECT * FROM evses ORDER BY updated_at DESC LIMIT 10")  # Adjust table name and limit as needed
-            sampleRows = cursor.fetchall()
-            for row in sampleRows:
-                print(row)
+            #cursor.execute("SELECT * FROM evses ORDER BY updated_at DESC LIMIT 10")  # Adjust table name and limit as needed
+            #sampleRows = cursor.fetchall()
+            #for row in sampleRows:
+            #    print(row)
             
             cursor.close()
             db_conn.close()
