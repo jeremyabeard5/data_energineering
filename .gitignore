@@ -132,6 +132,7 @@ celerybeat.pid
 .venv
 env/
 venv/
+.venv/
 ENV/
 env.bak/
 venv.bak/
@@ -169,3 +170,20 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+#node modules, build files
+/node_modules
+/build
+
+# MacOS system files
+.DS_Store
+
+# logs
+npm-debug.log*
+yarn-error.log*
+
+# if using Next.js
+/.next
+
+# ignore coverage reports
+/coverage
