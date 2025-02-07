@@ -1,13 +1,15 @@
 import requests
 import os
 import psycopg2
+from datetime import date
 
+TODAY = date.today()
 # Define the API URL
-url = 'https://developer.nrel.gov/api/alt-fuel-stations/v1.json'
+URL = 'https://developer.nrel.gov/api/alt-fuel-stations/v1.json'
 # https://developer.nrel.gov/docs/transportation/alt-fuel-stations-v1/
 # https://developer.nrel.gov/docs/transportation/alt-fuel-stations-v1/all/
 
-state_codes = [
+STATE_CODES = [
     "AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "FL", "GA", 
     "HI", "ID", "IL", "IN", "IA", "KS", "KY", "LA", "ME", "MD", 
     "MA", "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH", "NJ", 
@@ -21,29 +23,12 @@ pg_host = os.getenv('PG_HOST')
 pg_port = os.getenv('PG_PORT')
 pg_db = os.getenv('PG_DB')
 
-
-db_conn = psycopg2.connect(
-            user=pg_un,
-            password=pg_pw,
-            host=pg_host,
-            port=pg_port,
-            database=pg_db
-        )
-
-def fetch_data():    
+def fetch_data(conn_params):    
     '''
     This is a test function to make sure the API is working
     '''
     # Make the GET request
-    params = {
-        'fuel_type': 'ELEC',
-        'access': 'public',
-        'limit': 'all',
-        'country': 'US',
-        #'state': 'CO, OH',
-        'api_key': api_key,
-    }
-    response = requests.get(url, params=params)
+    response = requests.get(URL, params=conn_params)
 
     # Check if the request was successful
     if response.status_code == 200:
@@ -55,10 +40,46 @@ def fetch_data():
     else:
         print('Failed to retrieve data:', response.status_code)
     
-def refresh_db():
+    
+def update_date_refreshed(conn_params, today):
+    db_conn = psycopg2.connect(
+        user=pg_un,
+        password=pg_pw,
+        host=pg_host,
+        port=pg_port,
+        database=pg_db
+    )
+    try:
+        cursor = db_conn.cursor()
+        
+        # SQL update statement
+        update_stmt = "UPDATE evses SET date_refreshed = %s"
+        # Execute the SQL statement
+        cursor.execute(update_stmt, (today,))
+        
+        # Commit the changes
+        db_conn.commit()
+        print("Date refreshed updated successfully")
+    except Exception as error:
+        print("Error while updating date_refreshed:", error)
+        db_conn.rollback()
+    finally:
+        # Close the cursor and connection
+        cursor.close()
+        db_conn.close()
+
+    
+def refresh_db(conn_params):
     '''
     This is the real function to hit the API, grab all data, and load it into the pg db
     '''
+    db_conn = psycopg2.connect(
+        user=pg_un,
+        password=pg_pw,
+        host=pg_host,
+        port=pg_port,
+        database=pg_db
+    )
     try:
         cursor = db_conn.cursor()
         # postgres datatypes: https://www.postgresql.org/docs/current/datatype.html 
@@ -76,6 +97,7 @@ def refresh_db():
                 ev_network_web VARCHAR(255),
                 ev_network VARCHAR(255),
                 ev_connector_types VARCHAR(255),
+                plugs_num INTEGER,
                 ev_level1_evse_num INTEGER,
                 ev_level2_evse_num INTEGER,
                 ev_dc_fast_num INTEGER,
@@ -88,21 +110,15 @@ def refresh_db():
                 state VARCHAR(10),
                 city VARCHAR(50),
                 street_address VARCHAR(255),
-                station_name VARCHAR(255)
+                station_name VARCHAR(255),
+                date_refreshed DATE
             )
         """)
-        
-        params = {
-            'fuel_type': 'ELEC',
-            'access': 'public',
-            'limit': 'all',
-            'country': 'US',
-            #'state': 'CO',
-            'api_key': api_key,
-        }
-        response = requests.get(url, params=params)
+        print("getting json...")
+        response = requests.get(URL, params=conn_params)
         if response.status_code == 200:
             data = response.json()
+            print("data retrieved successfully")
         else:
             print('Failed to retrieve data:', response.status_code)
         
@@ -145,6 +161,7 @@ def refresh_db():
                 station_name = EXCLUDED.station_name
             """
                 
+        print("parsing json...")
         selected_data = [(stat['id'], stat['facility_type'], stat['restricted_access'], 
                           stat['updated_at'], stat['date_last_confirmed'], stat['open_date'], 
                           stat['latitude'], stat['longitude'], stat['ev_pricing'], 
@@ -154,28 +171,87 @@ def refresh_db():
                           stat['expected_date'], stat['status_code'], stat['country'], 
                           stat['zip'], stat['state'], stat['city'], stat['street_address'], 
                           stat['station_name']) for stat in data['fuel_stations']]
+        print("executing refresh commands...")
         cursor.executemany(insert_stmt, selected_data)
         
         db_conn.commit()
         print(f"{len(selected_data)} rows inserted successfully")
     except Exception as error: #(Exception, psycopg2.Error) as error:
         print("Error while connecting to PostgreSQL: ", error)
+        db_conn.rollback()
     finally:
-        # closing database connection.
         if db_conn:
-            #cursor.execute("SELECT * FROM evses ORDER BY updated_at DESC LIMIT 10")  # Adjust table name and limit as needed
-            #sampleRows = cursor.fetchall()
-            #for row in sampleRows:
-            #    print(row)
-            
             cursor.close()
             db_conn.close()
             print("PostgreSQL connection is closed")
+        
+
+def execute_sql_commands(conn_params, commands):
+    # Connect to the PostgreSQL database
+    db_conn = psycopg2.connect(
+        user=pg_un,
+        password=pg_pw,
+        host=pg_host,
+        port=pg_port,
+        database=pg_db
+    )
+    cursor = db_conn.cursor()
+    try:
+        # Execute each command from the list
+        for command in commands:
+            print(f"executing sql commands: {commands[0:15]}...")
+            cursor.execute(command)
+        db_conn.commit()  # Commit the changes
+    except (Exception, psycopg2.DatabaseError) as error:
+        print(f"Error: {error}")
+        db_conn.rollback()  # Rollback in case of error
+    finally:
+        cursor.close()
+        db_conn.close()
 
 if __name__ == "__main__":
     print("running nrel_fetch.py")
+    params = {
+        'fuel_type': 'ELEC',
+        'access': 'public',
+        'limit': 'all',
+        'country': 'US',
+        'api_key': api_key,
+    }
     
-    #fetch_data()
+    print("refreshing db...")
+    refresh_db(params)
     
-    refresh_db()
+    print("creating connector_types table...")
+    cmds = """
+        CREATE TABLE IF NOT EXISTS public.ev_connector_types (
+            id SERIAL PRIMARY KEY,
+            evse_id INTEGER NOT NULL,
+            connector_type VARCHAR(255),
+            FOREIGN KEY (evse_id) REFERENCES public.evses (id)
+        );
+    """
+    execute_sql_commands(params, [cmds])
+
+    print("\nsplitting connector types...")
+    cmds = """
+        INSERT INTO public.ev_connector_types (evse_id, connector_type)
+        SELECT id, unnest(string_to_array(regexp_replace(ev_connector_types, '[{}]', '', 'g'), ',')) AS connector_type
+        FROM public.evses;
+    """
+    execute_sql_commands(params, [cmds])
+    
+    print("\nadding num_plugs column...")
+    cmds = """
+        ALTER TABLE evses ADD COLUMN IF NOT EXISTS plugs_num INTEGER;
+        UPDATE evses SET plugs_num = COALESCE(ev_level1_evse_num, 0) + COALESCE(ev_level2_evse_num, 0) + COALESCE(ev_dc_fast_num, 0);
+    """
+    execute_sql_commands(params, [cmds])
+    
+    print("\nupdating date_refreshed...")
+    update_date_refreshed(params, TODAY)
+    
+    print("nrel_fetch.py complete")
+    
+    
     
