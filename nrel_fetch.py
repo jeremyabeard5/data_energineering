@@ -111,7 +111,11 @@ def refresh_db(conn_params):
                 city VARCHAR(50),
                 street_address VARCHAR(255),
                 station_name VARCHAR(255),
-                date_refreshed DATE
+                date_refreshed DATE,
+                total_plugs_num INTEGER,
+                total_dcfc_plugs_num INTEGER,
+                total_l2_plugs_num INTEGER,
+                total_l1_plugs_num INTEGER
             )
         """)
         print("getting json...")
@@ -245,6 +249,38 @@ if __name__ == "__main__":
     cmds = """
         ALTER TABLE evses ADD COLUMN IF NOT EXISTS plugs_num INTEGER;
         UPDATE evses SET plugs_num = COALESCE(ev_level1_evse_num, 0) + COALESCE(ev_level2_evse_num, 0) + COALESCE(ev_dc_fast_num, 0);
+    """
+    execute_sql_commands(params, [cmds])
+    
+    print("\nsumming total plugs...")
+    cmds = """
+    ALTER TABLE evses ADD COLUMN IF NOT EXISTS total_plugs_num INTEGER;
+    UPDATE evses
+    SET total_plugs_num = (SELECT SUM(plugs_num) FROM evses);
+    """
+    execute_sql_commands(params, [cmds])
+    
+    print("\nsumming dcfc plugs...")
+    cmds = """
+    ALTER TABLE evses ADD COLUMN IF NOT EXISTS total_dcfc_plugs_num INTEGER;
+    UPDATE evses
+    SET total_dcfc_plugs_num = (SELECT SUM(ev_dc_fast_num) FROM evses);
+    """
+    execute_sql_commands(params, [cmds])
+    
+    print("\nsumming level2 plugs...")
+    cmds = """
+    ALTER TABLE evses ADD COLUMN IF NOT EXISTS total_l2_plugs_num INTEGER;
+    UPDATE evses
+    SET total_l2_plugs_num = (SELECT SUM(ev_level2_evse_num) FROM evses);
+    """
+    execute_sql_commands(params, [cmds])
+    
+    print("\nsumming level1 plugs...")
+    cmds = """
+    ALTER TABLE evses ADD COLUMN IF NOT EXISTS total_l1_plugs_num INTEGER;
+    UPDATE evses
+    SET total_l1_plugs_num = (SELECT SUM(ev_level1_evse_num) FROM evses);
     """
     execute_sql_commands(params, [cmds])
     
