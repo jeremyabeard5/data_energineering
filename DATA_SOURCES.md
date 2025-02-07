@@ -1,6 +1,6 @@
 ## Data Sources
-- **Colorado Open Data**: Locations and specifications of EV charging stations.
-- **Usage Data**: (Note: Actual usage data is ideal, but if unavailable, assumptions or simulated data may be used initially.)
+- **Alternative Fuels Data Center**: Locations and specifications of EV charging stations.
+- **Population Data**: TBD
 
 ## Documentation
 - [Readme](README.md)
