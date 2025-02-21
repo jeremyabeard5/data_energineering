@@ -3,11 +3,14 @@ TBD: commands, installations, dependencies, etc.
 
 ```bash
 git clone https://github.com/jeremyabeard5/data_energineering.git
-cd data-engineering
-# setup environment
-pip install -r requirements.txt
+cd data-energineering
+# setup backend
+python -m venv .venv
+source .venv/Scripts/activate
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
 # run the application
-python manage.py runserver
+python backend/manage.py runserver
 ```
 
 ## Documentation
